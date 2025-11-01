@@ -15,7 +15,6 @@
     label { font-weight: 600; display: flex; flex-direction: column; gap: 6px; }
     input, select, button { padding: 10px 12px; border: 1px solid #ddd; border-radius: 10px; font: inherit; }
     button { background: var(--accent); color: #fff; border: none; cursor: pointer; font-weight: 700; }
-    button:disabled { opacity: .6; cursor: not-allowed; }
     .actions { margin-top: 8px; display:flex; gap: 8px; flex-wrap: wrap; }
     .note { margin: 12px 0 0; font-size: .9rem; color:#444; }
     #results { margin-top: 18px; padding: 16px; border:1px solid #eee; border-radius:12px; background:linear-gradient(0deg,#fff,#fff) padding-box, linear-gradient(45deg,var(--muted),#d8c3a5) border-box; }
@@ -25,12 +24,14 @@
     .totals { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:8px; margin:8px 0 0; }
     .pill { background:#f6f7f8; padding:10px 12px; border-radius:12px; }
     footer { margin-top: 18px; font-size: .85rem; color:#666; }
+    .ok { font-size:.85rem; color:#2e7d32; margin:6px 0 -6px; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
       <h1>Compound Interest Explorer</h1>
+      <div class="ok" id="ok">JS is loaded ✅</div>
       <div class="grid">
         <label>Starting amount (A$)
           <input type="number" id="principal" value="1000" min="0" step="50" required>
@@ -55,7 +56,7 @@
         </label>
       </div>
       <div class="actions">
-        <button id="calc">Calculate</button>
+        <button id="calc" type="button">Calculate</button>
         <button id="reset" type="button">Reset</button>
       </div>
       <p class="note">Tip: “Regular contribution” is the amount you add <em>each compounding period</em> (e.g., each month if monthly compounding).</p>
@@ -65,8 +66,9 @@
   </div>
 
   <script>
+    // Helpers
     const $ = sel => document.querySelector(sel);
-    const currency = x => x.toLocaleString('en-AU', { style: 'currency', currency: 'AUD' });
+    const currency = x => Number(x||0).toLocaleString('en-AU', { style:'currency', currency:'AUD' });
 
     function compute({ P, r, n, t, C }) {
       const periods = Math.round(n * t);
@@ -80,13 +82,18 @@
       return { balance, rows };
     }
 
-    function run() {
-      const P = +$('#principal').value || 0;
-      const r = (+$('#rate').value || 0) / 100;
-      const t = +$('#years').value || 0;
-      const n = +$('#n').value || 1;
-      const C = +$('#contrib').value || 0;
+    function values() {
+      return {
+        P: parseFloat($('#principal').value) || 0,
+        r: (parseFloat($('#rate').value) || 0) / 100,
+        t: parseFloat($('#years').value) || 0,
+        n: parseInt($('#n').value, 10) || 1,
+        C: parseFloat($('#contrib').value) || 0
+      };
+    }
 
+    function render() {
+      const { P, r, n, t, C } = values();
       const { balance, rows } = compute({ P, r, n, t, C });
       const contribTotal = C * n * t;
       const totalPutIn = P + contribTotal;
@@ -107,8 +114,26 @@
       `;
     }
 
-    $('#calc').addEventListener('click', run);
-    $('#reset').addEventListener('click', () => {
-      $('#principal').value = 1000;
-      $('#rate').value = 6;
-      $('#years').value
+    // Wire up events
+    window.addEventListener('DOMContentLoaded', () => {
+      $('#calc').addEventListener('click', render);
+      $('#reset').addEventListener('click', () => {
+        $('#principal').value = 1000;
+        $('#rate').value = 6;
+        $('#years').value = 10;
+        $('#n').value = 12;
+        $('#contrib').value = 0;
+        render();
+      });
+
+      // Auto-update on any change
+      ['#principal','#rate','#years','#n','#contrib'].forEach(sel => {
+        $(sel).addEventListener('input', render);
+        $(sel).addEventListener('change', render);
+      });
+
+      render(); // first run
+    });
+  </script>
+</body>
+</html>
